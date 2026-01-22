@@ -1,0 +1,257 @@
+---
+title: "HDDA_Project_Group2"
+author: "MAIRAME SAMBA NIANG,NDEYE BINTA NDIAYE, Gaolatlhe Angelah Kgato, Jean-Baptiste Moute"
+date: "2026-01-20"
+output: html_document
+---
+
+
+```{r}
+install.packages("FactoMineR")
+```
+
+```{r}
+install.packages("factoextra")
+```
+
+```{r include = FALSE, echo=FALSE}
+library("FactoMineR")
+library("factoextra")
+```
+
+```{r}
+dataset <- read.csv("HDDAdataexam26.csv", sep = ";", dec = ",", header = TRUE, row.names = NULL)
+print(dataset)
+```
+
+```{r}
+sum(is.na(dataset))
+```
+
+```{r}
+sum(duplicated(dataset))
+```
+
+```{r}
+dataset <- dataset[!duplicated(dataset), ]
+```
+
+
+```{r}
+sum(duplicated(dataset))
+```
+
+
+```{r, comment= ' '}
+summary(dataset)
+```
+
+```{r}
+library(corrplot)
+corrplot(cor(dataset))
+```
+
+```{r}
+res.pca <- PCA(dataset, graph = FALSE, scale.unit = FALSE)
+print(res.pca)
+```
+
+## Eigen values
+
+```{r echo=FALSE}
+library(rlang)
+eig.val=res.pca$eig
+eig.val
+```
+
+```{r}
+fviz_eig(res.pca, addlabels = TRUE, ylim = c(0, 90))
+```
+
+## The variables
+```{r echo=FALSE}
+resvar=res.pca$var
+resvar
+```
+
+```{r}
+fviz_pca_var(res.pca, col.var = "contrib")
+```
+
+## The inviduals
+
+```{r echo=FALSE}
+resind=res.pca$ind
+```
+
+```{r}
+fviz_pca_ind(res.pca)
+```
+
+
+#1) Construct the following variables and add them to the dataframe ‘dataset'- 'LowInstagram' is a dummy taking the value 1 if 'InstagramRatio' is less than 0.5, and 
+#zero otherwise;- 'HighInstagram' is a dummy taking the value 1 if 'InstagramRatio' is greater than 2, and 
+#zero otherwise;
+
+```{r}
+dataset$LowInstagram  <- ifelse(dataset$InstagramRatio < 0.5, 1, 0)
+dataset$HighInstagram <- ifelse(dataset$InstagramRatio > 2, 1, 0)
+print(dataset)
+```
+
+
+#2) We would like to investigate the smartphone addiction of AIMS students. Do a multiple 
+#regression with 'Phone' as dependent variable (Y) and the following independent 
+#(predictors) variables: 'SocialNetworks', 'Happiness', 'Walk', 'LowInstagram', and 
+#'HighInstagram'.
+
+```{r}
+model_full <- lm(Phone ~ SocialNetworks + Happiness + Walk +
+             LowInstagram + HighInstagram, data = dataset)
+summary(model_full)
+```
+
+```{r}
+anova(model_full)
+```
+
+#3) Is the regression model in 2) useful in predicting 'Phone' time?.
+
+
+ANSWER:
+The p-value of the global Fisher test is smaller than 2.2e-16, which is far below the 5% significance level. Therefore, we reject the null hypothesis that all regression coefficients are zero. This shows that the linear regression model is statistically significant and useful for predicting phone usage time among AIMS students.
+
+
+#4) In the regression of 2), does 'SocialNetworks' significantly influence 'Phone'? 
+
+
+```{r}
+summary(model_full)$coefficients["SocialNetworks", ]
+```
+ANSWER:
+The variable SocialNetworks has a positive and highly significant effect on phone usage. Each additional minute spent on social networks increases phone time by approximately 0.91 minutes. The extremely small p-value (1.24e-60) confirms that this effect is statistically significant
+
+#5) According to the regression in 2), does 'Happiness' help reduce the time AIMS students spend on their phone?
+
+```{r}
+summary(model_full)$coefficients["Happiness", ]
+```
+ANSWER:
+The variable Happiness has a negative and statistically significant effect on phone usage. Each additional point of happiness reduces the daily phone time by approximately 7.4 minutes. The p-value (0.0133) confirms that this effect is significant at the 5% level.
+
+
+#6) Consider the regression output in 2) and two AIMS students A and B who provide 
+#exactly the same answers (120; 4; 15) for the variables 'SocialNetworks', 'Happiness' and 
+#'Walk' respectively. Student A has an 'InstagramRatio' of 2.1 and Student B has a 
+#'InstagramRatio' of 0.4. Give the predicted phone time for students A and B, respectively, 
+#denoted Phone(A) and Phone(B)
+
+
+```{r}
+studentA <- data.frame(SocialNetworks=120, Happiness=4, Walk=15,
+                LowInstagram=0, HighInstagram=1)
+
+studentB <- data.frame(SocialNetworks=120, Happiness=4, Walk=15,
+                LowInstagram=1, HighInstagram=0)
+
+PhoneA <- predict.lm(model_full, newdata = studentA)
+PhoneB <- predict.lm(model_full, newdata = studentB)
+
+PhoneA
+PhoneB
+```
+Interpretation:
+Using the linear regression model, the predicted phone time for student A is 142.4649, while for student B it is 195.1332 . The difference comes from the Instagram indicators, since student A has a high Instagram ratio whereas student B has a low Instagram ratio.
+
+
+#7) Do a backward stepwise regression until you only have significant predictors left at the 
+#5% significance level (it means delete one by one non-significant predictors beginning by 
+#the most non-significant).
+
+```{r}
+model_full <- lm(
+  Phone ~ SocialNetworks + Happiness + Walk + LowInstagram + HighInstagram,
+  data = dataset)
+
+backward_model1 <- step(model_full, direction = "backward")
+summary(backward_model1)
+```
+# Intepretation:
+After implementing the backward stepwise selection using the step() function, we notice that the algorithm did not remove all non-significant variables. Although the p-value of the model asserts the significance of model, we still have to explore other models that can be obtained using the backward stepise selection. We try another model which does not include 'LowInstagram' as it has the highest p-value from the previous results.
+
+
+```{r}
+model_noLowInstagram <- lm(
+  Phone ~ SocialNetworks + Happiness + HighInstagram,
+  data = dataset)
+
+backward_model2 <- step(model_noLowInstagram, direction = "backward")
+summary(backward_model2)
+```
+Intepretation:
+All variables are significant after removing 'LowInstagram'. We also notice that the difference in the adjusted-rsquared of the two models obtained using backward stewise selection isvery  low (0.0021) so we can select the simpler model(backward_model2 with less variables but more significant variables). In addition, the second model seems to reduce the AIC which is good.
+
+
+#8) Choose the model among those you obtained in 2) and 7) that is the most useful one 
+#according to the significance of the predictors variables and adjusted coefficient of 
+#determination to predict 'Phone' time.
+
+
+```{r}
+adjR2_model1 <- summary(model_full)$adj.r.squared
+adjR2_model2 <- summary(backward_model2)$adj.r.squared
+
+adjR2_model1
+adjR2_model2
+```
+
+#Interpretation:
+The model obtained in 2) (model_full) has a smaller adjusted-rsquared that the model obtained in 7) (backward_model2) but the difference is very small (0.0013421). However 'Model_full' has more variables than 'backward_model2', majority of which are not significant. We therefore decide that that the 'backward_model2' is the most useful as it is simpler and has an okay adjusted-rsquared.
+
+
+#9) Using the best model chosen in 8), give the predicted time an AIMS student spends 
+#watching his/her phone per day for a student who spends 30 minutes on social networks 
+#per day,  has a happiness score of 8, walks 2 kilometers a day and has an Instagram ratio 
+#of 2.1.
+
+
+
+```{r}
+# By using the best model backward_model2
+student1 <- data.frame(
+  SocialNetworks = 30,
+  Happiness = 8,
+  HighInstagram = ifelse(2.1 > 2, 1, 0)) # HighInstagram = 1
+
+Phone1 <- predict.lm(backward_model2, newdata = student1)
+Phone1
+```
+
+# Intepretation:
+An AIMS student who spends 30 minutes on social networks per day, has a happiness score of 8,walks 2 kilometers a day and has an Instagram ratio of 2.1 is predicted to spend roughly 38.58minutes on their phone.
+
+
+#10) Using the best model chosen in 8), give the predicted time an AIMS student spends 
+#watching his/her phone per day for a student who spends 30 minutes on social networks 
+#per day, has a happiness score of 8, walks 2 kilometers a day and has an Instagram ratio 
+#of 0.4.
+
+
+```{r}
+# By using the best model backward_model2
+student2 <- data.frame(
+  SocialNetworks = 30,
+  Happiness = 8,
+  HighInstagram = ifelse(0.4 > 2, 1, 0)) # HighInstagram = 0
+
+Phone2 <- predict.lm(backward_model2, newdata = student2)
+Phone2
+```
+
+# Intepretantion
+
+An AIMS student who spends 30 minutes on social networks per day, has a happiness score of 8,walks 2 kilometers a day and has an Instagram ratio of 0.4 is predicted to spend approximately 78.02 minutes on their phone.
+
+# Conclusion 
+Specifically,the final model shows that being in the highInstagram group is associated with a significant decrease in daily smarthphone time,suggesting that 'influencer-type' profiles may have more
+ curated or efficient usage patterns compared to others  users.
